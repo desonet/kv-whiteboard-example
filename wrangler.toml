@@ -1,0 +1,31 @@
+# wrangler.toml
+name = "kv-whiteboard-example"
+compatibility_date = "2024-06-20"
+
+main = "src/index.ts"
+usage_model = "bundled"
+
+# Optional: define custom vars (used for API keys, env settings, etc.)
+[vars]
+# Commented out to avoid secret leakage; use environment variables during deployment
+# OPENROUTER_API_KEY = "sk-..."  
+
+# Bind to Durable Object class
+[[durable_objects.bindings]]
+name = "SESSION_NAMESPACE"
+class_name = "SharedKnowledgeSession"
+
+# KV store used for session memory
+[[kv_namespaces]]
+binding = "CACHE"
+id = "dummy-id"
+preview_id = "dummy-id"
+
+# No build needed (ESM module)
+[build]
+command = "echo 'No build step needed'"
+
+# Enable local Durable Object + KV bindings
+[miniflare]
+kv_persist = true
+durable_objects_persist = true

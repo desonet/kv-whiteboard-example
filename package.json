@@ -1,0 +1,16 @@
+{
+  "name": "kv-whiteboard-example",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local"
+  },
+  "dependencies": {
+    "@xava-labs/agent": "file:../../packages/agent",
+    "hono": "^3.11.4",
+    "openai": "^4.24.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.24.3"
+  }
+}

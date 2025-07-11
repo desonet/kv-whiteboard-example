@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Shared Knowledge Whiteboard</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 2rem; }
+    textarea, input, button {
+      width: 100%;
+      margin-bottom: 1rem;
+      padding: 0.5rem;
+      font-size: 1rem;
+    }
+    pre, .message {
+      background: #f9f9f9;
+      padding: 1rem;
+      border-radius: 5px;
+      white-space: pre-wrap;
+      margin-bottom: 1rem;
+    }
+    .user { background: #e6f7ff; }
+    .assistant { background: #fffbe6; }
+    .summary { background: #f0f0f0; font-style: italic; }
+    #messages { margin-top: 2rem; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <h1>Shared Knowledge Whiteboard</h1>
+
+  <label for="session-id">Session ID:</label>
+  <input type="text" id="session-id" placeholder="e.g., team-sync" />
+
+  <label for="user-message">Your Message:</label>
+  <textarea id="user-message" rows="4" placeholder="Contribute to the shared session..."></textarea>
+
+  <button id="send">Send</button>
+  <button id="reset">Reset UI</button>
+
+  <h2>Shared Summary</h2>
+  <pre id="summary">(loading...)</pre>
+
+  <h2>Conversation Log</h2>
+  <div id="messages"></div>
+
+  <script>
+    const sendBtn = document.getElementById('send');
+    const resetBtn = document.getElementById('reset');
+    const sessionInput = document.getElementById('session-id');
+    const messageInput = document.getElementById('user-message');
+    const messagesDiv = document.getElementById('messages');
+    const summaryEl = document.getElementById('summary');
+
+    async function fetchSummary(sessionId) {
+      try {
+        const res = await fetch(`/session/${encodeURIComponent(sessionId)}`, { method: 'GET' });
+        if (res.ok) {
+          const text = await res.text();
+          summaryEl.textContent = text;
+        } else {
+          summaryEl.textContent = '(No summary yet)';
+        }
+      } catch (e) {
+        summaryEl.textContent = '(Error fetching summary)';
+      }
+    }
+
+    function addMessage(role, content) {
+      const div = document.createElement('div');
+      div.className = `message ${role}`;
+      div.textContent = `${role === 'user' ? '' : ''} ${content}`;
+      messagesDiv.appendChild(div);
+    }
+
+    sendBtn.addEventListener('click', async () => {
+      const sessionId = sessionInput.value.trim();
+      const userMessage = messageInput.value.trim();
+
+      if (!sessionId || !userMessage) {
+        alert('Please enter a session ID and message');
+        return;
+      }
+
+      sendBtn.disabled = true;
+      addMessage('user', userMessage);
+
+      try {
+        const res = await fetch(`/session/${encodeURIComponent(sessionId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: 'user', content: userMessage }),
+        });
+
+        if (!res.ok || !res.body) {
+          addMessage('assistant', ' Failed to fetch response');
+          return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let text = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          text += decoder.decode(value, { stream: true });
+        }
+        addMessage('assistant', text);
+        await fetchSummary(sessionId);
+      } catch (err) {
+        addMessage('assistant', ' Error: ' + err.message);
+      } finally {
+        sendBtn.disabled = false;
+        messageInput.value = '';
+      }
+    });
+
+    resetBtn.addEventListener('click', () => {
+      messagesDiv.innerHTML = '';
+      summaryEl.textContent = '(cleared)';
+      messageInput.value = '';
+    });
+
+    // Optional: auto-fetch summary on load if session ID is pre-filled
+    sessionInput.addEventListener('change', () => {
+      const id = sessionInput.value.trim();
+      if (id) fetchSummary(id);
+    });
+  </script>
+</body>
+</html>
